@@ -149,8 +149,8 @@ html{scroll-behavior:smooth}#costSec,#vz,#focusStage,#legacyReferenceTop,#secTre
 .ks-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.ks-chips label{display:flex;align-items:center;gap:6px;padding:5px 11px 5px 8px;border:1px solid #d9e3f3;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#8a97b3}
 .ks-chips label.on{color:#172033;border-color:#1d5be0;background:#f4f8ff}.ks-chips input{accent-color:#1d5be0;margin:0}
 
-.kho-left{grid-column:span 7;display:flex;flex-direction:column;gap:18px;min-width:0}.ks-panel{display:flex;flex-direction:column;min-width:0}#ksBox{flex:1;height:auto;min-height:260px}
-@media(max-width:1100px){.kho-left{grid-column:span 12}}
+.kho-left{grid-column:span 7;display:flex;flex-direction:column;gap:18px;min-width:0}.ks-panel{display:flex;flex-direction:column;min-width:0}.kho-main{display:flex;flex-direction:column;min-width:0}#khoBox{flex:1;height:auto;min-height:340px}.ks-list .vz-row{padding:7px 0;gap:10px}.ks-list .vz-av{width:30px;height:30px;font-size:13px}.ks-list .vz-name{flex-direction:row;align-items:baseline;gap:8px;margin-bottom:4px}.ks-list .vz-name b{font-size:13px}.ks-list .vz-num{width:112px;gap:3px}.ks-list .vz-num b{font-size:1.25em}.ks-list .vz-num .pill{white-space:nowrap}.kho-main:has(+ #ksPanel[hidden]){grid-column:span 12}.ks-empty{padding:24px 0;text-align:center;color:var(--muted);font-size:13px}
+@media(max-width:1100px){.kho-main{grid-column:span 12}}
 </style>
 <style id="text-scale-125">
 /* TEXT SCALE 125% — chỉ tăng chữ, không phóng to UI */
@@ -234,9 +234,8 @@ table{font-size:13.75px}th{font-size:12.5px}td{font-size:13.75px}td b{font-size:
 </section>
 <section class="grid-12" id="secKho">
   <div class="ov-head"><div><h2>Kho hàng</h2><p>Đơn xuất mới, đơn trả và KPI nhân viên kho</p></div></div>
-  <div class="kho-left"><article class="panel"><div class="panel-head"><div><h2>Đơn xuất mới &amp; đơn trả theo tháng</h2><p>Cột = đơn xuất mới · đường = đơn trả · toàn quốc</p></div></div><div class="ov-c" style="height:320px"><canvas id="khoChart"></canvas></div></article>
-  <article class="panel"><div class="panel-head"><div><h2>Kho xử lý trả hàng</h2><p id="vzRetSub"></p></div></div><div id="vzWh"></div></article></div>
-  <article class="panel span-5 ks-panel" id="ksPanel"><div class="panel-head"><div><h2>Đơn xuất kho theo nhân viên</h2><p id="ksSub"></p></div></div><div class="ks-chips" id="ksChips"></div><div class="ov-c" id="ksBox"><canvas id="ksChart"></canvas></div></article>
+  <article class="panel span-7 kho-main"><div class="panel-head"><div><h2>Xuất kho theo tháng</h2><p>Cột = đơn xuất mới · đường cam = đơn trả · đường tím nét đứt = thời gian xuất kho TB (phút) · bấm chú thích để bật/tắt</p></div></div><div class="ov-c" id="khoBox"><canvas id="khoChart"></canvas></div></article>
+  <article class="panel span-5 ks-panel" id="ksPanel"><div class="panel-head"><div><h2>Nhân viên kho</h2><p id="ksSub"></p></div></div><div class="ks-chips" id="ksChips"></div><div class="ks-list" id="ksList"></div></article>
   <article class="panel span-12" id="timePanel" hidden><div class="panel-head"><div><h2>Thời gian xử lý xuất kho</h2><p id="costTimeSub"></p></div></div><div class="cs-chips" id="costCodes"></div><div id="costDist"></div></article>
   <div class="grid-12 kp" id="khoPeople" hidden><article class="panel span-12" id="kkBox"><div class="panel-head"><div><h2>KPI nhân viên kho</h2><p>Số liệu lấy từ sheet “KPI Kho” của file báo cáo tháng</p></div></div><div class="kt-wrap" id="kkTable"></div></article>
 </div>
@@ -544,23 +543,22 @@ const ovDelta={id:"dl",afterDatasetsDraw(ch,a,o){if(!o||!o.vals)return;const x=c
 const KSK="logistics_kssel_v1";let KSOFF=load(KSK,null);
 function renderKS(mk){
   const ppl=(PEOPLE[mk]||[]).filter(p=>/^Kho/.test(p.pos)),bx=$("ksPanel");bx.hidden=!ppl.length;if(!ppl.length)return;
-  if(KSOFF===null){KSOFF=ppl.filter(p=>!p.fresh).map(p=>p.name);save(KSK,KSOFF)}
+  if(KSOFF===null){KSOFF=ppl.filter(p=>!p.fresh&&!p.ret).map(p=>p.name);save(KSK,KSOFF)}
   $("ksChips").innerHTML=ppl.map(p=>{const off=KSOFF.includes(p.name);return `<label class="${off?"":"on"}"><input type="checkbox" data-n="${esc(p.name)}" ${off?"":"checked"}><span style="color:${VPC[p.vp]||"#64748b"}">●</span>${esc(p.name)}</label>`}).join("");
   const rows=ppl.filter(p=>!KSOFF.includes(p.name)).sort((a,b)=>b.fresh-a.fresh);
   $("ksSub").textContent=`${rows.length}/${ppl.length} người · tổng ${fmt(rows.reduce((t,p)=>t+p.fresh,0))} đơn xuất mới`;
-  $("ksBox").style.minHeight=Math.max(260,rows.length*46+20)+"px";
-  if(window._ksc){window._ksc.destroy();window._ksc=null}
-  if(!rows.length)return;
-  window._ksc=new Chart($("ksChart"),{type:"bar",data:{labels:rows.map(p=>p.name),datasets:[{data:rows.map(p=>p.fresh),backgroundColor:rows.map(p=>VPC[p.vp]||"#2f80ed"),borderRadius:8,maxBarThickness:30,categoryPercentage:.72}]},
-    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,animation:{duration:450},layout:{padding:{right:56}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmt(c.raw)} đơn xuất mới`}}},scales:{x:{display:false,beginAtZero:true},y:{grid:{display:false},border:{display:false},ticks:{font:{size:11},color:"#475569"}}}},
-    plugins:[{id:"ksv",afterDatasetsDraw(ch){const x=ch.ctx;x.save();x.font="700 12px "+chartFontFamily();x.fillStyle="#172033";x.textBaseline="middle";ch.getDatasetMeta(0).data.forEach((b,i)=>x.fillText(fmt(rows[i].fresh),b.x+8,b.y));x.restore()}}]});
+  const mx=Math.max(1,...rows.map(p=>p.fresh)),tf=rows.reduce((t,p)=>t+p.fresh,0),tr=rows.reduce((t,p)=>t+p.ret,0);
+  $("ksSub").textContent=`${rows.length}/${ppl.length} người · ${fmt(tf)} đơn xuất mới · ${fmt(tr)} đơn trả`;
+  $("ksList").innerHTML=rows.length?rows.map(p=>{const rt=p.fresh>0?fmt(p.ret/p.fresh*100,1)+"%":"—",col=VPC[p.vp]||"#64748b";
+    return `<div class="vz-row"><div class="vz-av" style="background:${col}">${esc(p.name.trim().split(" ").pop()[0])}</div><div class="vz-main"><div class="vz-name"><b>${esc(p.name)}</b><span>${esc(vpName(p.vp)||"")}</span></div><div class="vz-track"><i style="width:${p.fresh/mx*100}%;background:${col}"></i></div></div><div class="vz-num"><b>${fmt(p.fresh)}</b><span class="pill n">trả ${fmt(p.ret)} · ${rt}</span></div></div>`}).join(""):`<div class="ks-empty">Chưa chọn nhân viên nào</div>`;
 }
 $("ksChips").addEventListener("change",e=>{const n=e.target.dataset.n;if(!n)return;const i=KSOFF.indexOf(n);if(e.target.checked){if(i>=0)KSOFF.splice(i,1)}else if(i<0)KSOFF.push(n);save(KSK,KSOFF);renderKS($("month").value)});
 function renderKho(mk){
   const ks=Object.keys(DATA).sort();if(!ks.length)return;const lab=ks.map(k=>"T"+(+k.slice(5))+"/"+k.slice(2,4));
   if(window._khoc)window._khoc.destroy();
-  window._khoc=new Chart($("khoChart"),{data:{labels:lab,datasets:[{type:"bar",label:"Đơn xuất mới",data:ks.map(k=>ovVal("fresh",k,"all")),backgroundColor:ks.map(k=>k===mk?"#1d5be0":"#c3d7fb"),borderRadius:8,categoryPercentage:.8,barPercentage:.6,yAxisID:"y"},{type:"line",label:"Đơn trả",data:ks.map(k=>ovVal("ret",k,"all")),borderColor:"#f59e0b",backgroundColor:"#f59e0b",borderWidth:3,tension:.3,pointRadius:ks.map(k=>k===mk?7:4),yAxisID:"y1"}]},
-    options:{responsive:true,maintainAspectRatio:false,animation:{duration:450},interaction:{mode:"index",intersect:false},plugins:{legend:{position:"top",align:"end",labels:{usePointStyle:true,boxWidth:7,boxHeight:7,font:{size:11},padding:12}}},scales:{x:{grid:{display:false},ticks:{color:c=>ks[c.index]===mk?"#1d5be0":"#718096"}},y:{beginAtZero:true,grid:{color:"#eef2f7"},title:{display:true,text:"Đơn xuất mới"}},y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"Đơn trả"}}}}});
+  const tm=ks.map(k=>COST[k]&&COST[k].mins!=null?COST[k].mins:null),hasT=tm.some(v=>v!=null);
+  window._khoc=new Chart($("khoChart"),{data:{labels:lab,datasets:[{type:"bar",label:"Đơn xuất mới",data:ks.map(k=>ovVal("fresh",k,"all")),backgroundColor:ks.map(k=>k===mk?"#1d5be0":"#c3d7fb"),borderRadius:8,categoryPercentage:.8,barPercentage:.6,yAxisID:"y"},{type:"line",label:"Đơn trả",data:ks.map(k=>ovVal("ret",k,"all")),borderColor:"#f59e0b",backgroundColor:"#f59e0b",borderWidth:3,tension:.3,pointRadius:ks.map(k=>k===mk?7:4),yAxisID:"y1"}].concat(hasT?[{type:"line",label:"TG xuất kho TB (phút)",data:tm,borderColor:"#8b5cf6",backgroundColor:"#8b5cf6",borderWidth:2.5,borderDash:[6,4],tension:.3,spanGaps:true,pointRadius:ks.map(k=>k===mk?7:4),yAxisID:"y2"}]:[])},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:450},interaction:{mode:"index",intersect:false},plugins:{legend:{position:"top",align:"end",labels:{usePointStyle:true,boxWidth:7,boxHeight:7,font:{size:11},padding:12}}},scales:{x:{grid:{display:false},ticks:{color:c=>ks[c.index]===mk?"#1d5be0":"#718096"}},y:{beginAtZero:true,grid:{color:"#eef2f7"},title:{display:true,text:"Đơn xuất mới"}},y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"Đơn trả"}},...(hasT?{y2:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"Phút",color:"#7c3aed"},ticks:{color:"#7c3aed"}}}:{})}}});
 }
 function renderGN(mk){
   const ks=Object.keys(DATA).sort();if(!ks.length)return;const lab=ks.map(k=>"T"+(+k.slice(5))+"/"+k.slice(2,4)),vs=Object.keys(VPC);
@@ -607,12 +605,7 @@ function decorKpi(mk){
 (()=>{const ls=[...document.querySelectorAll(".secnav a[href^='#']")].filter(a=>a.hash.length>1),mp=new Map(ls.map(a=>[a.hash.slice(1),a])),io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){ls.forEach(a=>a.classList.remove("on"));const a=mp.get(e.target.id);a&&a.classList.add("on")}}),{rootMargin:"-25% 0px -65% 0px"});
   mp.forEach((a,id)=>{const el=document.getElementById(id);el&&io.observe(el)});$("navSet").addEventListener("click",e=>{e.preventDefault();$("openSettings").click()})})();
 function renderVisual(mk){
-  const ppl=PEOPLE[mk]||[],vz=$("vz");$("gnBub").hidden=$("khoPeople").hidden=!ppl.length;if(!ppl.length){$("vzWh").innerHTML="";$("vzRetSub").textContent="Chưa có dữ liệu nhân viên · nạp Excel báo cáo tháng này";return}renderKK(mk);
-  const wh=ppl.filter(p=>/^Kho/.test(p.pos)).sort((a,b)=>b.ret-a.ret),tr=wh.reduce((t,p)=>t+p.ret,0),mx=Math.max(1,...wh.map(p=>p.ret)),top=wh[0];
-  $("vzRetSub").textContent=`${fmt(tr)} đơn trả · ${wh.length} nhân viên kho · tỷ lệ = đơn trả / đơn xuất mới`;
-  $("vzWh").innerHTML=wh.map(p=>{const rt=p.fresh>0?p.ret/p.fresh*100:null,col=VPC[p.vp]||"#64748b";
-    return `<div class="vz-row"><div class="vz-av" style="background:${col}">${esc(p.name.trim().split(" ").pop()[0])}</div><div class="vz-main"><div class="vz-name"><b>${esc(p.name)}</b><span>${esc(p.pos)} · ${vpName(p.vp)}</span></div><div class="vz-track"><i data-w="${p.ret/mx*100}" style="background:${col}"></i></div></div><div class="vz-num"><b>${fmt(p.ret)}</b><span class="pill n">${rt==null?"—":fmt(rt,1)+"%"}</span></div></div>`}).join("");
-  requestAnimationFrame(()=>requestAnimationFrame(()=>vz.querySelectorAll(".vz-track i").forEach(i=>i.style.width=i.dataset.w+"%")));
+  const ppl=PEOPLE[mk]||[],vz=$("vz");$("gnBub").hidden=$("khoPeople").hidden=!ppl.length;if(!ppl.length)return;renderKK(mk);
   if(window._vzc)window._vzc.destroy();
   const gn=ppl.filter(p=>p.pos==="Giao Nhận"&&p.orders);
   const lbl={id:"vzl",afterDatasetsDraw(c){const x=c.ctx;x.save();x.font="600 11px "+chartFontFamily();x.fillStyle="#172033";x.textAlign="center";c.data.datasets.forEach((d,i)=>c.getDatasetMeta(i).data.forEach((b,j)=>x.fillText(d.data[j].n.split(" ").slice(-2).join(" "),b.x,b.y-b.options.radius-6)));x.restore();}};
